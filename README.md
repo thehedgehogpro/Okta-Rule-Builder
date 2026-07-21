@@ -1,21 +1,8 @@
 # Okta Group Rule Builder — Chrome / Edge Extension
 
-Same React app and rendering as the standalone HTML tool, packaged as a
+Simple React app, packaged as a
 Manifest V3 extension that opens in its own full browser tab when you click the
 toolbar icon.
-
-## Why a build step?
-
-Chrome MV3 extension pages forbid remotely-hosted scripts and runtime `eval`
-(which is how in-browser Babel works). So two things must be produced once, on a
-machine with internet, before loading the extension:
-
-1. `vendor/react.production.min.js` + `vendor/react-dom.production.min.js`
-   (downloaded locally instead of from a CDN)
-2. `app.js` — your `app.jsx` with the JSX compiled to plain
-   `React.createElement` calls (no runtime Babel needed)
-
-After that the extension runs fully offline with a strict CSP.
 
 ## Build (one time)
 
@@ -34,11 +21,6 @@ This downloads React into `vendor/` and compiles `app.jsx` -> `app.js`.
 2. Turn on **Developer mode** (top-right)
 3. Click **Load unpacked** and select this `okta-ext` folder
 4. Click the extension's toolbar icon — the builder opens in a new tab
-
-## Editing the app later
-
-All application logic lives in `app.jsx` — edit it exactly like the original
-HTML file's `<script>` block, then re-run `npm run build`. Nothing else changes.
 
 ## Files
 
