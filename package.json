@@ -1,0 +1,13 @@
+{
+  "name": "okta-group-rule-builder-extension",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Build step for the Okta Group Rule Builder Chrome/Edge extension.",
+  "scripts": {
+    "build": "bash build.sh"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/preset-react": "^7.24.0"
+  }
+}
