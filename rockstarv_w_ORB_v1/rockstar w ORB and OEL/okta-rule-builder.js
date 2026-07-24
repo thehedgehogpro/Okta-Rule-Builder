@@ -163,6 +163,14 @@ const STRING_OPS = [
   { value: "substr_neq", label: "substring at position does not equal", tpl: (l, v, leaf) => `String.substring(${l}, ${substrArgs(leaf)}) != "${v}"` },
   { value: "present", label: "is present", tpl: (l) => `String.stringContains(${l}, "") || ${l} != null` },
   { value: "empty", label: "is empty / null", tpl: (l) => `String.isNullOrEmpty(${l})` },
+  // Boolean comparisons — unquoted true/false literal (e.g. user.peopleManager == true),
+  // as opposed to the string equality ops above which quote the value
+  // (e.g. user.peopleManager == "true"). Okta EL treats these very differently:
+  // the unquoted form compares against the actual boolean, the quoted form
+  // compares against the literal string "true". customOnly restricts these to
+  // the "Custom attribute…" picker since none of the built-in PROFILE_ATTRS are booleans.
+  { value: "istrue", label: "Is True (boolean)", tpl: (l) => `${l} == true`, customOnly: true },
+  { value: "isfalse", label: "Is False (boolean)", tpl: (l) => `${l} == false`, customOnly: true },
 ];
 
 const GROUP_OPS = [
@@ -185,6 +193,18 @@ const GROUP_OPS = [
     value: "notmember_id",
     label: "is NOT a member of (by Group ID)",
     tpl: (id) => `!isMemberOfGroup("${id}")`,
+  },
+  // NOTE: only "starts with" is supported here — Okta EL has no
+  // isMemberOfGroupNameEndsWith, so an "ends with" op is intentionally omitted.
+  {
+    value: "startswith",
+    label: "group name starts with",
+    tpl: (id) => `isMemberOfGroupNameStartsWith("${id}")`,
+  },
+  {
+    value: "notstartswith",
+    label: "group name does NOT start with",
+    tpl: (id) => `!isMemberOfGroupNameStartsWith("${id}")`,
   },
 ];
 
@@ -225,7 +245,7 @@ function leafToEL(leaf) {
   const attr = leaf.attr === "__custom__" ? leaf.customAttr.trim() : leaf.attr;
   if (!attr) return null;
   const op = STRING_OPS.find((o) => o.value === leaf.op) || STRING_OPS[0];
-  const needsValue = !["present", "empty"].includes(op.value);
+  const needsValue = !["present", "empty", "istrue", "isfalse"].includes(op.value);
   if (needsValue && !leaf.value.trim()) return null;
   return op.tpl(attr, leaf.value.trim(), leaf);
 }
@@ -310,10 +330,12 @@ function negateNode(node) {
     eq: "neq", neq: "eq",
     eq_ci: "neq_ci", neq_ci: "eq_ci",
     substr_eq: "substr_neq", substr_neq: "substr_eq",
+    istrue: "isfalse", isfalse: "istrue",
   };
   const GROUP_FLIP = {
     member: "notmember", notmember: "member",
     member_id: "notmember_id", notmember_id: "member_id",
+    startswith: "notstartswith", notstartswith: "startswith",
   };
 
   const table = node.type === "group" ? GROUP_FLIP : PROFILE_FLIP;
@@ -463,6 +485,25 @@ function parseELtoAST(toks) {
     if (peek() && (peek().t === "==" || peek().t === "!=")) {
       const opTok = next();
       const valTok = peek();
+
+      // Unquoted true/false (e.g. user.peopleManager == true) is a boolean
+      // comparison, distinct from a quoted "true"/"false" string comparison
+      // (which falls through to the generic id/str branch below and keeps
+      // its quotes via the eq/neq template).
+      if (valTok && valTok.t === "id" && (valTok.v === "true" || valTok.v === "false")) {
+        next();
+        const literalTrue = valTok.v === "true";
+        const isEq = opTok.t === "==";
+        // e.g. "!= false" or a leading "!" each flip which boolean state we're matching.
+        const matchesTrue = negated ? !(isEq ? literalTrue : !literalTrue) : (isEq ? literalTrue : !literalTrue);
+        const leaf = newLeaf();
+        leaf.type = "profile";
+        leaf.op = matchesTrue ? "istrue" : "isfalse";
+        applyAttr(leaf, name);
+        leaf.value = "";
+        return leaf;
+      }
+
       let val = "";
       if (valTok && valTok.t === "str") { next(); val = valTok.v; }
       else if (valTok && valTok.t === "id") { next(); val = valTok.v; }
@@ -566,6 +607,13 @@ function funcToLeaf(name, args, negated) {
     const leaf = newLeaf();
     leaf.type = "group";
     leaf.op = negated ? "notmember_id" : "member_id";
+    leaf.value = firstStr(args[0]);
+    return leaf;
+  }
+  if (name === "isMemberOfGroupNameStartsWith") {
+    const leaf = newLeaf();
+    leaf.type = "group";
+    leaf.op = negated ? "notstartswith" : "startswith";
     leaf.value = firstStr(args[0]);
     return leaf;
   }
@@ -813,7 +861,7 @@ function JoinToggle(node) {
 /* ---- View: Leaf condition -------------------------------------------------- */
 function Leaf(node, canRemove) {
   const hideValue =
-    node.type === "profile" && ["present", "empty"].includes(node.op);
+    node.type === "profile" && ["present", "empty", "istrue", "isfalse"].includes(node.op);
 
   if (node._raw !== undefined) {
     return h(
@@ -893,7 +941,20 @@ function Leaf(node, canRemove) {
   if (node.type === "profile") {
     const attrSelect = h(
       "select",
-      { onChange: (e) => patchNode(node.id, { attr: e.target.value }), style: selStyle },
+      {
+        onChange: (e) => {
+          const newAttr = e.target.value;
+          const patch = { attr: newAttr };
+          // The boolean ops only make sense for a custom attribute (none of the
+          // built-in PROFILE_ATTRS are booleans) — fall back to "equals" so the
+          // select doesn't silently keep a now-hidden option selected.
+          if (newAttr !== "__custom__" && (node.op === "istrue" || node.op === "isfalse")) {
+            patch.op = "eq";
+          }
+          patchNode(node.id, patch);
+        },
+        style: selStyle,
+      },
       PROFILE_ATTRS.map((a) =>
         h("option", { value: a.value, selected: node.attr === a.value }, a.label)
       )
@@ -901,7 +962,7 @@ function Leaf(node, canRemove) {
     const opSelect = h(
       "select",
       { onChange: (e) => patchNode(node.id, { op: e.target.value }), style: selStyle },
-      STRING_OPS.map((o) =>
+      STRING_OPS.filter((o) => !o.customOnly || node.attr === "__custom__").map((o) =>
         h("option", { value: o.value, selected: node.op === o.value }, o.label)
       )
     );
@@ -961,7 +1022,12 @@ function Leaf(node, canRemove) {
     controls = [
       opSelect,
       h("input", {
-        placeholder: node.op === "member_id" || node.op === "notmember_id" ? "Group ID (00g…)" : "Group name",
+        placeholder:
+          node.op === "member_id" || node.op === "notmember_id"
+            ? "Group ID (00g…)"
+            : node.op === "startswith" || node.op === "notstartswith"
+            ? "Group name prefix"
+            : "Group name",
         value: node.value,
         onInput: (e) => patchNodeNoRender(node.id, { value: e.target.value }),
         style: { ...selStyle, width: 190 },
