@@ -667,6 +667,12 @@ function funcToLeaf(name, args, negated) {
 // Clean helper flags off a parsed tree and ensure the root is a group.
 function normalizeParsed(node) {
   if (!node) return null;
+  // Groups built during parsing (mergeJoin, the parenthesis branch) are plain
+  // object literals with no id. Without one, every such node shares id ===
+  // undefined, so updateNode/removeNode match the first undefined-id node (the
+  // root) instead of the intended one, wiping unrelated logic. Guarantee a
+  // unique id on every parsed node here.
+  if (node.id == null) node.id = uid();
   if (node.kind === "group") {
     delete node._sealed;
     node.children = node.children.map(normalizeParsed).filter(Boolean);
