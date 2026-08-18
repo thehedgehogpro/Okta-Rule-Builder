@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "ORB - Beta",
+  "version": "0.5",
+  "description": "Okta Rule Builder (ORB) adds extensive group rule functionality",
+  "omnibox": {
+    "keyword": "orb"
+  },
+  "action": {
+    "default_popup": "menu.html"
+  },
+  "icons": {
+    "16": "ORB_Logo_16.png",
+    "128": "ORB_Logo_128.png",
+    "256": "ORB_Logo_256.png"
+  },
+  "background": {
+    "service_worker": "service_worker.js",
+    "type": "module"
+  },
+  "permissions": ["declarativeContent"],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.okta.com/*",
+        "https://*.okta-emea.com/*",
+        "https://*.oktapreview.com/*",
+        "https://*.okta-gov.com/*",
+        "https://*.okta.mil/*"
+      ],
+      "js": ["jquery-1.12.4.min.PATCHED.js", "okta-rule-builder.js", "oel-preview.js", "orb-plugin.js"],
+      "css": ["orb.css"]
+    }
+  ]
+}
