@@ -1,31 +1,10 @@
-# rockstar is a Chrome extension that adds these features to Okta
-- Export Objects to CSV: eg, Users, Groups, Group Members, Directory Users, App Users, App Groups, Apps, App Notes.
-- Administrators page: Export Admins
-- User home page: Show SSO (SAML assertion, etc)
-- People page: enhanced search
-- Person page: show login/email and AD info, show user detail, enhance menus/title, manage user's admin roles
-- Events: Expand All and Expand Each Row
-- API: API Explorer, Pretty Print JSON
-- Many: enhanced menus
+# ORB (Okta Rule Builder) adds new user-friendly features to Group Rules via a Chrome plugin
+1. Edit Okta Expression Language in a visual logic-builder UI
+2. Run real-time tests against your expression and see which users match your expression.
+...and more coming soon.
 
-...and more to come
-
-see also https://gabrielsroka.github.io/rockstar
-
-# Install as extension
-1. Create a folder on your hard drive called "rockstar". Download the files to the "rockstar" folder.
-2. Open Chrome.
-3. Go to the Extensions tab.
-4. Click to enable Developer Mode.
-5. Drag the "rockstar" folder to the Chrome Extensions tab.
-
-To test:
-1. Temporarily turn off the Chrome store version while you test/debug.
-2. After each change to your dev version of rockstar, click the reload button on the Extensions tab, then reload the okta.com page, then test, and repeat.
-3. When you're done testing, you can turn the Chrome store version back on, and turn off the dev version.
-
-# Greasemonkey script
-https://gabrielsroka.github.io/rockstar/rockstar.user.js
-
-# Bookmarklet
-https://github.com/gabrielsroka/gabrielsroka.github.io/blob/master/rockstar/rockstar_bm.js
+# Install the extension
+1. Create a folder on your hard drive called "ORB". Download the files to the "ORB" folder.
+2. Open Chrome, navigate to the extensions (chrome://extensions/)
+4. Click to enable Developer Mode in the top right.
+5. Click "Load unpacked" in the top left, then select the "ORB" folder.
