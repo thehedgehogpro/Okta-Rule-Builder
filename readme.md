@@ -12,8 +12,8 @@
 # Version Notes
 
 **v0.7**
--Added ability to select custom attributes directly from the "Profile" attribute selection withou having to manually type "user.customAttribute"
--Added mapping from imported expressions to this new drop-down for easy edits.
+*Added ability to select custom attributes directly from the "Profile" attribute selection withou having to manually type "user.customAttribute"
+*Added mapping from imported expressions to this new drop-down for easy edits.
 
 **v0.6**
 -Added ability to select attributes to be included in preview .csv export, including custom attributes.
