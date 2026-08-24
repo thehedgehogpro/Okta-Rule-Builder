@@ -62,6 +62,31 @@
     });
   }
 
+  /* =========================================================================
+     USER SCHEMA — load the org's custom profile attributes once per page and
+     cache them. Rides the same getJSON (session cookie + XSRF headers) as every
+     other admin API call, so there is no separate auth path. Resolves to the
+     parsed schema object, or null on failure (callers treat null as "no custom
+     attributes available" and fall back to the manual free-text box).
+  ========================================================================= */
+  let _userSchemaPromise = null;
+
+  function loadUserSchema() {
+    // Cache the PROMISE, not just the result, so two quick clicks don't fire
+    // two fetches. Cached for the page lifetime; an SPA nav that reloads the
+    // page starts fresh, which is what we want if the admin switched orgs.
+    if (_userSchemaPromise) return _userSchemaPromise;
+    _userSchemaPromise = getJSON("/api/v1/meta/schemas/user/default").catch(
+      function (err) {
+        // Don't cache a failure — clear it so a later open can retry.
+        _userSchemaPromise = null;
+        console.warn("[orb] user schema load failed:", err && err.message);
+        return null;
+      }
+    );
+    return _userSchemaPromise;
+  }
+
   // Mirrors rockstar's postJSON({url, data}) signature exactly, since that is
   // what oel-preview.js calls: hostPostJSON({ url, data: body }).
   function postJSON(settings) {
@@ -218,32 +243,47 @@
 
         const builder = window.createGroupRuleBuilder(container);
 
+        // Load custom attributes first, THEN import the existing expression, so
+        // attributes like user.jobCode resolve to their dropdown entry instead
+        // of the manual box. The schema fetch is cached, so this is instant on
+        // reopen. If the schema fails/empties, importing still works — those
+        // attributes just stay in the manual box (and would snap into place
+        // later via the builder's reconcile step if attributes arrive).
         const advancedRadio = document.querySelector(
           'input[data-se-name="__activeBuilder__"][value="EDITOR"]'
         );
         const isAdvanced = !!(advancedRadio && advancedRadio.checked);
 
-        if (isAdvanced && expr && expr.value.trim()) {
-          const res = builder.importExpressionText(expr.value);
-          if (res && !res.ok) {
-            const note = document.createElement("div");
-            note.style.cssText = "color:#b00;font-size:12px;margin:8px 0;";
-            note.textContent =
-              "Could not parse the existing expression. (" + res.error + ")";
-            container.insertBefore(note, container.firstChild);
-          }
-        } else if (expr && expr.value.trim()) {
-          const res = builder.loadExpression(expr.value);
-          if (!res.ok) {
-            const note = document.createElement("div");
-            note.style.cssText = "color:#b00;font-size:12px;margin:8px 0;";
-            note.textContent =
-              "Could not parse the existing expression; starting from a blank builder. (" +
-              res.error +
-              ")";
-            container.insertBefore(note, container.firstChild);
+        function importExisting() {
+          if (!(expr && expr.value.trim())) return;
+          if (isAdvanced) {
+            const res = builder.importExpressionText(expr.value);
+            if (res && !res.ok) {
+              const note = document.createElement("div");
+              note.style.cssText = "color:#b00;font-size:12px;margin:8px 0;";
+              note.textContent =
+                "Could not parse the existing expression. (" + res.error + ")";
+              container.insertBefore(note, container.firstChild);
+            }
+          } else {
+            const res = builder.loadExpression(expr.value);
+            if (!res.ok) {
+              const note = document.createElement("div");
+              note.style.cssText = "color:#b00;font-size:12px;margin:8px 0;";
+              note.textContent =
+                "Could not parse the existing expression; starting from a blank builder. (" +
+                res.error +
+                ")";
+              container.insertBefore(note, container.firstChild);
+            }
           }
         }
+
+        loadUserSchema()
+          .then(function (schema) {
+            if (schema) builder.setCustomAttributesFromSchema(schema);
+          })
+          .finally(importExisting);
 
         // "Apply to Okta rule" — write the generated expression back into the
         // textarea and fire input/change so Okta's form model updates.
@@ -352,6 +392,7 @@
       postJSON,
       getLinks,
       getXsrfToken,
+      loadUserSchema,
       injectGroupRuleModalButton,
     };
   }
