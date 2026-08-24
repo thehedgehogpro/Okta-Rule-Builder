@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "ORB - Beta",
-  "version": "0.5",
+  "name": "ORB - Okta Rule Builder",
+  "version": "0.7",
   "description": "Okta Rule Builder (ORB) adds extensive group rule functionality",
   "omnibox": {
     "keyword": "orb"
@@ -11,8 +11,11 @@
   },
   "icons": {
     "16": "ORB_Logo_16.png",
+    "32": "ORB_Logo_32.png",
+    "64": "ORB_Logo_64.png",
     "128": "ORB_Logo_128.png",
-    "256": "ORB_Logo_256.png"
+    "256": "ORB_Logo_256.png",
+    "500": "ORB_Logo_500.png"
   },
   "background": {
     "service_worker": "service_worker.js",

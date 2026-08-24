@@ -3,8 +3,8 @@ IF YOU'RE AN OKTA DEV READING THIS... PLS SEND ME SOME SWAG :)
 MUCH LOVE FOR THE PRODUCT
 -TIM
 ===========================================================================
-   Okta Group Rule Builder — packaged as a mountable module for the rockstar
-   extension. Call createGroupRuleBuilder(containerEl) to render the UI into
+   Okta Group Rule Builder was originally packaged as mountable
+   in the Rockstar extension. Call createGroupRuleBuilder(containerEl) to render the UI into
    the given element (e.g. a rockstar popup body). Self-contained; no external
    deps, all styling inline.
    Exposes: window.createGroupRuleBuilder(containerEl)
@@ -19,7 +19,7 @@ function createGroupRuleBuilder(_mountRoot) {
    - Live-generates valid Okta Expression Language
    - Import an existing expression and edit it in the UI
 =========================================================================== */
-
+//ORB was originally built in React, had to translate to .js
 /* ---------------------------------------------------------------------------
    Tiny DOM helper (replaces React.createElement)
    h(tag, props, ...children) -> HTMLElement
@@ -142,6 +142,68 @@ const PROFILE_ATTRS = [
   { value: "user.lastName", label: "Last Name" },
   { value: "__custom__", label: "Custom attribute…" },
 ];
+
+/* ---------------------------------------------------------------------------
+   Custom attribute registry
+   ---------------------------------------------------------------------------
+   Custom attributes are loaded at runtime from the Okta user schema and cached
+   here. Same {value,label} shape as PROFILE_ATTRS, plus `type` (from the schema)
+   so operator filtering can tell strings from booleans.
+
+   IMPORTANT: every place that needs to reason about an attribute — the option
+   list, the operator filter, the import/parse path — must go through attrInfo()
+   below, NOT re-search these arrays directly. That single chokepoint is what
+   keeps the renderer and the parser from drifting apart as attributes change.
+--------------------------------------------------------------------------- */
+let CUSTOM_ATTRS = [];
+
+// Replace the cached custom attributes with a fresh set from the Okta schema.
+// `list` items: { value: "user.<key>", label, type }. Passing nothing clears.
+function setCustomAttrs(list) {
+  CUSTOM_ATTRS = Array.isArray(list) ? list : [];
+}
+
+// Turn an Okta user-schema object into the {value,label,type} attribute list
+// and cache it. Pure: no network. The host fetches the schema (through its own
+// request stack) and hands the parsed JSON here. Returns the loaded list.
+function setCustomAttrsFromSchema(schema) {
+  const props =
+    (schema && schema.definitions && schema.definitions.custom && schema.definitions.custom.properties) || {};
+  setCustomAttrs(
+    Object.keys(props).map((key) => ({
+      value: `user.${key}`,
+      label: props[key].title || key,
+      type: props[key].type || "string", // "string" | "boolean" | "integer" | ...
+    }))
+  );
+  return CUSTOM_ATTRS;
+}
+
+// THE single lookup. Given an attribute `value` (e.g. "user.department" or the
+// "__custom__" sentinel), return everything the UI needs to know about it:
+//   known  -> is it a recognised built-in or loaded custom attr (not free-text)?
+//   custom -> is it the manual free-text sentinel?
+//   type   -> schema type when known ("string" by default), else null
+//   source -> "builtin" | "custom" | "manual" | "unknown"
+// Search order: built-ins first, then loaded custom attrs.
+function attrInfo(value) {
+  if (value === "__custom__") {
+    return { known: false, custom: true, type: null, source: "manual" };
+  }
+  const builtin = PROFILE_ATTRS.find((a) => a.value === value && a.value !== "__custom__");
+  if (builtin) return { known: true, custom: false, type: "string", source: "builtin" };
+  const custom = CUSTOM_ATTRS.find((a) => a.value === value);
+  if (custom) return { known: true, custom: false, type: custom.type || "string", source: "custom" };
+  return { known: false, custom: false, type: null, source: "unknown" };
+}
+
+// Should boolean operators (Is True / Is False) be offered for this attribute?
+// True for the manual free-text sentinel (author knows their own schema) and
+// for any loaded custom attr the schema says is a boolean.
+function attrSupportsBoolean(value) {
+  const info = attrInfo(value);
+  return info.custom || info.type === "boolean";
+}
 
 // String operators map to Okta EL fragments. lhs = attribute, rhs = value.
 // NOTE: "ends with" (String.endsWith) removed — not supported in Okta EL.
@@ -563,8 +625,9 @@ function rawLeaf(text) {
 }
 
 function applyAttr(leaf, attr) {
-  const known = PROFILE_ATTRS.find((a) => a.value === attr && a.value !== "__custom__");
-  if (known) { leaf.attr = attr; leaf.customAttr = ""; }
+  // A "known" attribute (built-in or loaded custom) binds directly to the
+  // dropdown; anything unrecognised falls back to the manual free-text box.
+  if (attrInfo(attr).known) { leaf.attr = attr; leaf.customAttr = ""; }
   else { leaf.attr = "__custom__"; leaf.customAttr = attr; }
 }
 
@@ -835,6 +898,38 @@ function removeNode(root, id) {
   };
 }
 
+// After custom attributes load, a leaf that was parsed into the manual
+// free-text box (attr === "__custom__") because its attribute wasn't known yet
+// may now match a real attribute. Walk the tree and snap any such leaf onto the
+// dropdown selection so imported expressions resolve correctly regardless of
+// whether the schema loaded before or after the parse. Returns a new tree; only
+// affected leaves change identity.
+function reconcileCustomAttrs(node) {
+  if (node.kind === "group") {
+    return { ...node, children: node.children.map(reconcileCustomAttrs) };
+  }
+  // Only manual-box profile leaves are candidates; raw/group/known leaves stay.
+  if (node.type !== "profile" || node.attr !== "__custom__" || node._raw !== undefined) {
+    return node;
+  }
+  const typed = (node.customAttr || "").trim();
+  if (typed && attrInfo(typed).known) {
+    return { ...node, attr: typed, customAttr: "" };
+  }
+  return node;
+}
+
+// Reconcile every tree the builder holds: the active builder tree and, if the
+// user imported something on the Import tab but hasn't loaded it yet, that
+// parsed result too. Called when custom attributes become available so manual
+// leaves snap onto real attributes no matter which tab holds them.
+function reconcileAllTrees() {
+  state.root = reconcileCustomAttrs(state.root);
+  if (state.import && state.import.result && state.import.result.root) {
+    state.import.result.root = reconcileCustomAttrs(state.import.result.root);
+  }
+}
+
 function patchNode(id, patch) {
   setState({ root: updateNode(state.root, id, (n) => ({ ...n, ...patch })) });
 }
@@ -869,6 +964,60 @@ function JoinToggle(node) {
         j
       );
     })
+  );
+}
+
+/* ---- View helpers: attribute + operator option lists ----------------------
+   Both return arrays of <option>/<optgroup> nodes for a leaf's selects. Kept
+   out of Leaf() so that changing how attributes are grouped/sorted, or how
+   operators are filtered, is a one-function edit with an obvious home.
+--------------------------------------------------------------------------- */
+
+// Options for the profile-attribute <select>: built-ins, then any loaded custom
+// attributes, then the manual free-text escape hatch. `selectedValue` is the
+// leaf's current attr so the right option renders selected.
+function buildAttrOptions(selectedValue) {
+  const opts = [];
+
+  opts.push(
+    h(
+      "optgroup",
+      { label: "Standard attributes" },
+      PROFILE_ATTRS.filter((a) => a.value !== "__custom__").map((a) =>
+        h("option", { value: a.value, selected: selectedValue === a.value }, a.label)
+      )
+    )
+  );
+
+  if (CUSTOM_ATTRS.length) {
+    opts.push(
+      h(
+        "optgroup",
+        { label: "Custom attributes" },
+        CUSTOM_ATTRS.map((a) =>
+          h("option", { value: a.value, selected: selectedValue === a.value }, a.label)
+        )
+      )
+    );
+  }
+
+  opts.push(
+    h(
+      "option",
+      { value: "__custom__", selected: selectedValue === "__custom__" },
+      CUSTOM_ATTRS.length ? "Custom attribute (type manually)…" : "Custom attribute…"
+    )
+  );
+
+  return opts;
+}
+
+// Options for the profile operator <select>. Boolean-only ops (customOnly) are
+// shown only when the selected attribute supports booleans.
+function buildOpOptions(node) {
+  const allowBoolean = attrSupportsBoolean(node.attr);
+  return STRING_OPS.filter((o) => !o.customOnly || allowBoolean).map((o) =>
+    h("option", { value: o.value, selected: node.op === o.value }, o.label)
   );
 }
 
@@ -959,26 +1108,21 @@ function Leaf(node, canRemove) {
         onChange: (e) => {
           const newAttr = e.target.value;
           const patch = { attr: newAttr };
-          // The boolean ops only make sense for a custom attribute (none of the
-          // built-in PROFILE_ATTRS are booleans) — fall back to "equals" so the
-          // select doesn't silently keep a now-hidden option selected.
-          if (newAttr !== "__custom__" && (node.op === "istrue" || node.op === "isfalse")) {
+          // If the newly selected attribute can't be a boolean, drop any
+          // boolean op so the select doesn't keep a now-hidden option selected.
+          if (!attrSupportsBoolean(newAttr) && (node.op === "istrue" || node.op === "isfalse")) {
             patch.op = "eq";
           }
           patchNode(node.id, patch);
         },
         style: selStyle,
       },
-      PROFILE_ATTRS.map((a) =>
-        h("option", { value: a.value, selected: node.attr === a.value }, a.label)
-      )
+      buildAttrOptions(node.attr)
     );
     const opSelect = h(
       "select",
       { onChange: (e) => patchNode(node.id, { op: e.target.value }), style: selStyle },
-      STRING_OPS.filter((o) => !o.customOnly || node.attr === "__custom__").map((o) =>
-        h("option", { value: o.value, selected: node.op === o.value }, o.label)
-      )
+      buildOpOptions(node)
     );
     const isSubstr = node.op === "substr_eq" || node.op === "substr_neq";
     const substrControls = isSubstr
@@ -1541,6 +1685,23 @@ function render() {
       if (result && result.root) return { ok: true, warnings: result.warnings || [] };
       if (result && result.error) return { ok: false, error: result.error };
       return { ok: true, warnings: [] };
+    },
+    // Populate the custom-attribute dropdown from an Okta user-schema object,
+    // then re-render so the new options appear. The host fetches the schema
+    // through its own request stack (see orb-plugin) and passes the parsed JSON
+    // here — the builder does no network I/O. Returns the loaded attribute list.
+    setCustomAttributesFromSchema(schema) {
+      const loaded = setCustomAttrsFromSchema(schema);
+      reconcileAllTrees();
+      render();
+      return loaded;
+    },
+    // Escape hatch for hosts that already have the attributes in final shape
+    // (e.g. cached from a previous open). Pass [{value:"user.x",label,type}].
+    setCustomAttributes(list) {
+      setCustomAttrs(list);
+      reconcileAllTrees();
+      render();
     },
   };
 } // end createGroupRuleBuilder

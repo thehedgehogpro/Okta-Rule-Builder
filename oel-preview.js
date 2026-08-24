@@ -447,6 +447,7 @@ function createOelPreview(_mountRoot, _opts) {
           state.matched.push({
             name: userDisplayName(u),
             login: (u.profile && u.profile.login) || u.id,
+            profile: u.profile || {},
           });
         }
       }
@@ -560,21 +561,68 @@ function createOelPreview(_mountRoot, _opts) {
     return m + " m " + s + " s";
   }
 
-  // Build a CSV string from the current matches. Each field is quoted and any
-  // embedded quotes are doubled, per RFC 4180, so names/logins containing
-  // commas, quotes, or newlines survive intact. A leading BOM makes Excel open
-  // it as UTF-8.
-  function buildCsv() {
+  // The standard Okta base-profile attributes, in Okta's own base-schema order.
+  // Any of these present on the matches are pinned to the front of the column
+  // list so exports lead with the familiar fields; everything else (custom
+  // schema properties) follows, sorted alphabetically for predictability.
+  const STANDARD_PROFILE_ATTRS = [
+    "login", "email", "secondEmail", "firstName", "lastName", "middleName",
+    "honorificPrefix", "honorificSuffix", "title", "displayName", "nickName",
+    "profileUrl", "primaryPhone", "mobilePhone", "streetAddress", "city",
+    "state", "zipCode", "countryCode", "postalAddress", "preferredLanguage",
+    "locale", "timezone", "userType", "employeeNumber", "costCenter",
+    "organization", "division", "department", "managerId", "manager",
+  ];
+
+  // Collect the union of every Okta profile attribute key present across the
+  // matched users. Different users can carry different attributes (custom
+  // schema properties, optionals some users lack), so we can't rely on any
+  // single user's profile to enumerate the columns. Ordering: the standard
+  // base-schema attributes come first in Okta's canonical order, then any
+  // remaining (custom) attributes sorted alphabetically.
+  function collectProfileAttributes() {
+    const present = new Set();
+    state.matched.forEach((m) => {
+      const p = m.profile || {};
+      for (const k in p) {
+        if (Object.prototype.hasOwnProperty.call(p, k)) present.add(k);
+      }
+    });
+    const standard = STANDARD_PROFILE_ATTRS.filter((k) => present.has(k));
+    const standardSet = new Set(standard);
+    const custom = [...present].filter((k) => !standardSet.has(k)).sort();
+    return standard.concat(custom);
+  }
+
+  // Render an Okta profile value into a single CSV cell. Scalars go through as
+  // strings; arrays (e.g. multi-value attributes) are joined with "; "; objects
+  // are JSON-stringified so nothing is silently dropped.
+  function csvCellValue(v) {
+    if (v == null) return "";
+    if (Array.isArray(v)) return v.map((x) => (x == null ? "" : String(x))).join("; ");
+    if (typeof v === "object") { try { return JSON.stringify(v); } catch (e) { return String(v); } }
+    return String(v);
+  }
+
+  // Build a CSV string from the current matches, one column per selected Okta
+  // profile attribute (in the given order). Each field is quoted and any
+  // embedded quotes are doubled, per RFC 4180, so values containing commas,
+  // quotes, or newlines survive intact. A leading BOM makes Excel open it as
+  // UTF-8.
+  function buildCsv(attrs) {
     const esc = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
-    const rows = [["Name", "Username / Login"]];
-    state.matched.forEach((m) => rows.push([m.name, m.login]));
+    const rows = [attrs.slice()];
+    state.matched.forEach((m) => {
+      const p = m.profile || {};
+      rows.push(attrs.map((a) => csvCellValue(p[a])));
+    });
     return "\uFEFF" + rows.map((r) => r.map(esc).join(",")).join("\r\n");
   }
 
-  // Trigger an immediate download of the current matches as a CSV file.
-  function downloadCsv() {
-    if (!state.matched.length) return;
-    const blob = new Blob([buildCsv()], { type: "text/csv;charset=utf-8;" });
+  // Write the current matches to a CSV file using the chosen attribute columns.
+  function downloadCsv(attrs) {
+    if (!state.matched.length || !attrs || !attrs.length) return;
+    const blob = new Blob([buildCsv(attrs)], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
     const a = h("a", { href: url, download: "oel-matches-" + stamp + ".csv" });
@@ -582,6 +630,116 @@ function createOelPreview(_mountRoot, _opts) {
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  // ---- Attribute-picker overlay ------------------------------------------
+  // Clicking ".csv" no longer downloads immediately. It opens a modal listing
+  // every Okta profile attribute found across the matches as checkboxes, with
+  // a "Generate .csv" button that exports only the checked columns.
+  let _csvOverlay = null;
+
+  function closeCsvOverlay() {
+    if (_csvOverlay && _csvOverlay.parentNode) _csvOverlay.parentNode.removeChild(_csvOverlay);
+    _csvOverlay = null;
+    document.removeEventListener("keydown", onCsvOverlayKey);
+  }
+  function onCsvOverlayKey(e) { if (e.key === "Escape") closeCsvOverlay(); }
+
+  function openCsvOverlay() {
+    if (!state.matched.length) return;
+    closeCsvOverlay();
+
+    const attrs = collectProfileAttributes();
+    // Pre-check the attributes that map to the two original columns, if present,
+    // so the default export matches the old behavior closely.
+    const preferred = new Set(["firstName", "lastName", "displayName", "login", "email"]);
+    const checks = {};
+    attrs.forEach((a) => { checks[a] = preferred.has(a); });
+    if (!attrs.some((a) => checks[a])) attrs.forEach((a) => { checks[a] = true; });
+
+    const boxStyle = {
+      display: "flex", alignItems: "center", gap: 8, padding: "6px 8px",
+      borderRadius: 8, cursor: "pointer", fontSize: 16, color: C.text,
+    };
+
+    const setAll = (val) => {
+      attrs.forEach((a) => { checks[a] = val; });
+      grid.querySelectorAll("input[type=checkbox]").forEach((cb) => { cb.checked = val; });
+    };
+
+    const grid = h("div", {
+      style: {
+        display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+        gap: 4, maxHeight: "50vh", overflowY: "auto",
+        border: `1px solid ${C.border}`, borderRadius: 10, padding: 10, background: "#ffffff",
+      },
+    }, attrs.length
+      ? attrs.map((a) =>
+          h("label", { style: boxStyle },
+            h("input", {
+              type: "checkbox",
+              checked: checks[a],
+              onChange: (e) => { checks[a] = e.target.checked; },
+            }),
+            h("span", { style: { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" } }, a)
+          ))
+      : h("p", { style: { color: C.dim, fontSize: 13, margin: 0 } },
+          "No profile attributes were found on the matched users."));
+
+    const linkBtn = (label, onClick) => h("button", {
+      onClick,
+      style: {
+        background: "transparent", color: C.accent, border: "none",
+        cursor: "pointer", fontSize: 12, fontWeight: 700, padding: 0,
+      },
+    }, label);
+
+    const panelEl = h("div", {
+      onClick: (e) => e.stopPropagation(),
+      style: {
+        background: C.panel, color: C.text, border: `1px solid ${C.border}`,
+        borderRadius: 14, padding: 20, width: "min(680px, 92vw)",
+        boxShadow: "0 12px 40px rgba(0,0,0,0.3)",
+        fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
+      },
+    },
+      h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 } },
+        h("h2", { style: { fontSize: 18, margin: 0, fontWeight: 700 } }, "Choose CSV columns"),
+        h("button", {
+          onClick: closeCsvOverlay, title: "Close",
+          style: { background: "transparent", border: "none", cursor: "pointer", fontSize: 20, lineHeight: 1, color: C.dim },
+        }, "\u00D7")
+      ),
+      h("p", { style: { color: C.dim, fontSize: 13, margin: "0 0 12px" } },
+        "Select the Okta profile attributes to include as columns. " +
+        state.matched.length.toLocaleString() + (state.matched.length === 1 ? " user" : " users") + " will be exported."),
+      attrs.length
+        ? h("div", { style: { display: "flex", gap: 12, marginBottom: 8 } },
+            linkBtn("Select all", () => setAll(true)),
+            linkBtn("Clear all", () => setAll(false)))
+        : null,
+      grid,
+      h("div", { style: { display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 } },
+        primaryButton("Generate .csv", IconDownload(15), () => {
+          const chosen = attrs.filter((a) => checks[a]);
+          if (!chosen.length) return;
+          downloadCsv(chosen);
+          closeCsvOverlay();
+        }, attrs.length > 0)
+      )
+    );
+
+    _csvOverlay = h("div", {
+      onClick: closeCsvOverlay,
+      style: {
+        position: "fixed", inset: 0, zIndex: 2147483000,
+        background: "rgba(0,0,0,0.45)", display: "flex",
+        alignItems: "center", justifyContent: "center", padding: 20,
+      },
+    }, panelEl);
+
+    document.body.appendChild(_csvOverlay);
+    document.addEventListener("keydown", onCsvOverlayKey);
   }
 
   function statusLine() {
@@ -624,7 +782,7 @@ function createOelPreview(_mountRoot, _opts) {
 
   function csvButton() {
     return h("button", {
-      onClick: downloadCsv,
+      onClick: openCsvOverlay,
       title: "Export matched users as CSV",
       style: {
         display: "flex", alignItems: "center", gap: 6,
