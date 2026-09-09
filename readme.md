@@ -11,6 +11,14 @@
 
 # Version Notes
 
+**v0.9**
+- Added App and Group membership Export functions.
+- Included options for both profile attributes & app-specific attributes for each user.
+
+**v0.8**
+- Added "View Rule" button when looking at a Group, next to users populated by Rule.
+- Improved UI elements for consistency and readability, including redesigined menu when clicking the extension's icon.
+
 **v0.7**
 - Added ability to select custom attributes from the "Profile" attribute selection without entering "user.customAttribute" by hand
 - Added mapping from imported expressions to this new drop-down for easy edits.

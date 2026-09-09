@@ -21,7 +21,9 @@
    Load order in the extension manifest / injected scripts:
        1. okta-rule-builder.js   (defines window.createGroupRuleBuilder)
        2. oel-preview.js         (defines window.createOelPreview)
-       3. orb-plugin.js          (this file — mounts them)
+       3. orb-rule-viewer.js     (defines window.orbRuleViewer)
+       4. orb-group-export.js    (defines window.orbGroupExport)
+       5. orb-plugin.js          (this file — mounts them)
 
    The two modules already carry native-fetch fallbacks, so this file does NOT
    depend on jQuery. It only hands OEL Preview a postJSON + getLinks so the
@@ -207,6 +209,8 @@
      two launcher buttons to Okta's native Add/Edit/View Group Rule modal and
      wires them to the two modules' public APIs.
   ========================================================================= */
+  let _modalObserver = null;
+
   function injectGroupRuleModalButton() {
     const SAVE_SEL = '.o-form-button-bar input[data-type="save"]';
     const CLOSE_SEL = '.o-form-button-bar input[data-type="cancel"]';
@@ -356,29 +360,90 @@
     }
 
     tryInject();
-    new MutationObserver(tryInject).observe(document.body, {
-      childList: true,
-      subtree: true,
+    if (_modalObserver) return; // boot() can run again on SPA navigation
+    _modalObserver = new MutationObserver(tryInject);
+    _modalObserver.observe(document.body, { childList: true, subtree: true });
+  }
+
+  /* =========================================================================
+     RULE VIEWER MOUNT — orb-rule-viewer.js owns the "View Rule" buttons in a
+     group's People table and the popover that shows each rule's OEL. Hand it
+     the same request helpers so its API calls carry the extension's headers
+     and, where needed, the console's XSRF token.
+  ========================================================================= */
+  function mountRuleViewer() {
+    if (!window.orbRuleViewer) {
+      console.warn(
+        "[orb] orb-rule-viewer.js is not loaded, so the View Rule buttons were skipped."
+      );
+      return;
+    }
+    window.orbRuleViewer.inject({
+      getJSON,
+      postJSON,
+      getLinks,
+      createPopup,
+      loadUserSchema,
     });
   }
 
   /* =========================================================================
-     BOOT — rockstar only wired these launchers on admin hosts at
-     /admin/groups. Preserve that guard so the observer isn't installed on
-     unrelated pages. Adjust the guard if the extension's match patterns differ.
+     EXPORT MOUNT — orb-group-export.js owns the "Download" buttons in a
+     group's People toolbar and an app's Assignments toolbar, plus the CSV
+     column picker behind them. loadUserSchema matters here: the picker builds
+     its column list from the org's profile schema rather than from the rows,
+     so handing over the cached copy means the picker opens without a fetch
+     when the Rule Builder has already loaded it.
   ========================================================================= */
-  function boot() {
-    const isAdminHost = /-admin/.test(location.host);
-    const isGroupsPage = location.pathname === "/admin/groups";
-    if (!isAdminHost || !isGroupsPage) return;
-
-    if (document.body) {
-      injectGroupRuleModalButton();
-    } else {
-      document.addEventListener("DOMContentLoaded", injectGroupRuleModalButton, {
-        once: true,
-      });
+  function mountExport() {
+    const mod = window.orbExport || window.orbGroupExport;
+    if (!mod) {
+      console.warn(
+        "[orb] orb-group-export.js is not loaded, so the Download buttons were skipped."
+      );
+      return;
     }
+    mod.inject({
+      getJSON,
+      getLinks,
+      loadUserSchema,
+    });
+  }
+
+  /* =========================================================================
+     BOOT — rockstar only wired the rule-modal launchers on admin hosts at
+     /admin/groups. The View Rule buttons live one level deeper, on a single
+     group's People tab (/admin/group/<groupId>), and the Download buttons add
+     a third shape, an app instance's Assignments tab, so the guard now covers
+     all of them. The rule-builder and rule-viewer pieces stay group-only.
+     Everything below is idempotent, which lets us re-run on history changes
+     when the console swaps views without a full page load.
+  ========================================================================= */
+  const GROUP_PATH = /^\/admin\/group(s)?(\/|$)/;
+  const APP_INSTANCE_PATH = /^\/admin\/app\/[^\/?#]+\/instance\//;
+
+  function start() {
+    const path = location.pathname;
+    const onGroup = GROUP_PATH.test(path);
+    const onApp = APP_INSTANCE_PATH.test(path);
+    if (!onGroup && !onApp) return;
+
+    if (onGroup) {
+      injectGroupRuleModalButton();
+      mountRuleViewer();
+    }
+    mountExport();
+  }
+
+  function boot() {
+    if (!/-admin/.test(location.host)) return;
+
+    if (document.body) start();
+    else document.addEventListener("DOMContentLoaded", start, { once: true });
+
+    // The console changes the URL without reloading in places, so re-check.
+    window.addEventListener("popstate", start);
+    window.addEventListener("hashchange", start);
   }
 
   boot();
@@ -394,6 +459,9 @@
       getXsrfToken,
       loadUserSchema,
       injectGroupRuleModalButton,
+      mountRuleViewer,
+      mountGroupExport: mountExport, // old name, kept as an alias
+      mountExport,
     };
   }
 })();

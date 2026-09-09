@@ -1,45 +1,119 @@
 <!doctype html>
 <html>
 <head>
-<title>rockstar</title>
+<meta charset="utf-8">
+<title>ORB - Okta Rule Builder</title>
 <style>
+html {
+    /* Fallback color in case the gradient layer ever fails to paint */
+    background: #0a1e3f;
+}
 body {
     /* font-family: "Segoe UI", "Lucida Grande", Tahoma, sans-serif; */
     font-size: 14px;
     width: 450px; /* max is 800 */
-    height: 570px; /* max is 600 */
+    min-height: 570px; /* max is 600 */
+    margin: 0;
+    padding: 0 16px 16px;
+    box-sizing: border-box;
+    position: relative;
+    background: transparent;
+    color: #ffffff;
+}
+/* Fixed layer pinned to the popup viewport, so it never scrolls or cuts off */
+body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: linear-gradient(135deg, #0a1e3f 0%, #17497c 45%, #3d8fc4 100%);
+    z-index: -1;
+}
+.header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 14px;
+}
+.logo {
+    width: 36px;
+    height: 36px;
+    flex: 0 0 auto;
 }
 .title {
     font-size: 1.5em;
     font-weight: bold;
 }
+h2, h3 {
+    color: #ffffff;
+}
+p, li {
+    /* Keeps white type readable over the lighter end of the gradient */
+    text-shadow: 0 1px 2px rgba(4, 18, 38, 0.55);
+}
+a {
+    color: #bfe3ff;
+}
+a:hover,
+a:focus {
+    color: #ffffff;
+}
+a:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+}
+.help-link {
+    margin-left: auto;
+    flex: 0 0 auto;
+    font-weight: bold;
+    text-decoration: none;
+    width: 1.4em;
+    height: 1.4em;
+    line-height: 1.4em;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+}
 </style>
 </head>
 <body>
-<br>
-<span class=title>Okta Rule Builder (ORB)</span>
-<div style='display: block; float: right;'>
-<a href='https://github.com/thehedgehogpro/Okta-Rule-Builder/' target='_blank' rel='noopener'>?</a>
+<div class="header">
+<img class="logo" src="ORB_Logo_White_36.png" alt="">
+<span class="title">Okta Rule Builder (ORB)</span>
+<a class="help-link" href='https://github.com/thehedgehogpro/Okta-Rule-Builder/' target='_blank' rel='noopener' title="Open the ORB project on GitHub">?</a>
 </div>
-<p>
-Enhances Okta with these features:
+<h3>Okta Rule builder created by Tim McWeeny</h3>
+<p>If ORB has helped you manage your group rules, and you think I've earned it... I'd love a coffee :) Venmo: @Tim-McWeeny</p>
+
+<h2>Release Notes v0.9</h2>
+<ul>
+<li>Added App and Group membership Export functions.
+<li>Improved on the "View Rule" function when looking at a group's users populated by Rule.
+</ul>
+
+<h2>Enhances Okta with these features:</h2>
 <ul>
 <li>Edit Okta Expression Language in a visual logic-builder UI
-<li>Run real-time tests against your expresion and see which users match your expression.
+<li>Run real-time tests against your expression and see which users match your expression.
+<li>View the rule expression directly on a Group populated via Rule with a simple button click
 </ul>
+
 <h2>Usage</h2>
 <ol>
 <li>Login to Okta or Okta Admin.
 <li>Navigate to Groups > Rules > Add Rule OR View/Edit an existing Rule
-<li>Click "Open in Rule BUilder" to edit your expression in a visual UI using AND/OR expressions.
-<li>Click "Preview OEL Rule" to run real-time tests against your expresion and see which users match your expression.
+<li>Click "Open in Rule Builder" to edit your expression in a visual UI using AND/OR expressions.
+<li>Click "Preview OEL Rule" to run real-time tests against your expression and see which users match your expression.
 </ol>
+
 <h2>Bugs or Feedback?</h2>
 <p>The source is available on
 <a href="https://github.com/thehedgehogpro/Okta-Rule-Builder/" target='_blank' rel='noopener'>GitHub</a>, please create an Issue and I promise to review it!</p>
 <br>
-<h3>Okta Rule builder created by Tim McWeeny</h3>
-<p>Special thanks to Gabriel Stroka -creator of the beloved Rockstar extension- for all his help and encouragement to build this tool.</p>
+
+<p>Special thanks to Gabriel Stroka -creator of the beloved Rockstar extension- for all his help and encouragement building this tool.</p>
 <div id="results"></div>
 <script src="menu.js"></script>
 </body>
