@@ -1,0 +1,85 @@
+ORB (Okta Rule Builder)
+Copyright (c) 2026 Tim McWeeny. All rights reserved.
+https://github.com/thehedgehogpro/Okta-Rule-Builder
+
+PROPRIETARY LICENSE
+
+The source code for this software is published for transparency, security
+review, and end use. Publication does not place it in the public domain and
+does not grant any open source license. All rights not expressly granted
+below are reserved by the copyright holder.
+
+1. PERMITTED USE
+
+You may:
+
+  (a) install and run unmodified copies of this software in the browsers you
+      or your employer control, including for internal business purposes;
+
+  (b) read, review, and audit the source code; and
+
+  (c) make local modifications for your own or your employer's internal use,
+      provided those modifications are not distributed to third parties.
+
+2. RESTRICTIONS
+
+Without the prior written permission of the copyright holder, you may not:
+
+  (a) redistribute, publish, sublicense, rent, sell, or otherwise make this
+      software or any portion of it available to third parties, whether
+      modified or unmodified, and whether or not for a fee;
+
+  (b) distribute derivative works, forks, or adaptations of this software;
+
+  (c) publish this software, or a work derived from it, to any extension
+      marketplace, package registry, or app store; or
+
+  (d) remove or alter this notice or any copyright, attribution, or license
+      notice contained in the software.
+
+Nothing in this section restricts any right you hold under applicable law
+that cannot be waived by contract, including rights of fair use or fair
+dealing and rights of reverse engineering granted by statute.
+
+3. CONTRIBUTIONS
+
+By submitting a contribution, including a pull request, patch, or code
+suggestion, you grant the copyright holder a perpetual, worldwide,
+non-exclusive, royalty-free, irrevocable license to use, reproduce, modify,
+distribute, sublicense, and relicense that contribution as part of this
+software, under this license or any other license the copyright holder later
+chooses. You confirm that you have the right to grant that license. You
+retain copyright in your contribution.
+
+4. NO WARRANTY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF,
+OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+This software modifies the behavior of a third-party administrative console
+in the user's own browser. You are responsible for confirming that your use
+complies with your organization's policies and with your agreements with any
+affected vendor.
+
+5. NO AFFILIATION
+
+Okta is a trademark of Okta, Inc. This software is an unofficial community
+tool. It is not created, endorsed, supported, or reviewed by Okta, Inc., and
+no affiliation or sponsorship is claimed or implied. All other trademarks are
+the property of their respective owners.
+
+6. TERMINATION
+
+Any use of this software in breach of Section 2 terminates the permissions
+granted in Section 1 automatically.
+
+7. CONTACT
+
+For permission beyond the scope of this license, open an issue at
+https://github.com/thehedgehogpro/Okta-Rule-Builder/issues or contact the
+copyright holder.

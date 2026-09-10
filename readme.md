@@ -10,6 +10,11 @@
 5. Click "Load unpacked" in the top left, then select the "ORB" folder.
 
 # Version Notes
+**v1.0**
+- Added "Verify MFA" to the user page to allow for Helpdesk IT admins to validate a caller using MFA prompt.
+- Added a Search Bar function to the Workflows app, allowing for search regardless of folder location
+- Added Exports from the People Page
+- Added Push Groups to export options when viewing an app
 
 **v0.9**
 - Added App and Group membership Export functions.

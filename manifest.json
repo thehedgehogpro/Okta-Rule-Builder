@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ORB - Okta Rule Builder",
-  "version": "0.9.1",
+  "version": "1.0",
   "description": "Okta Rule Builder (ORB) adds extensive group rule functionality",
   "omnibox": {
     "keyword": "orb"
@@ -21,7 +21,10 @@
     "service_worker": "service_worker.js",
     "type": "module"
   },
-  "permissions": ["declarativeContent"],
+  "permissions": [
+    "declarativeContent",
+    "storage"
+  ],
   "content_scripts": [
     {
       "matches": [
@@ -31,8 +34,19 @@
         "https://*.okta-gov.com/*",
         "https://*.okta.mil/*"
       ],
-      "js": ["jquery-1.12.4.min.PATCHED.js", "okta-rule-builder.js", "oel-preview.js", "orb-rule-viewer.js", "orb-group-export.js", "orb-plugin.js"],
-      "css": ["orb.css"]
+      "js": [
+        "jquery-1.12.4.min.PATCHED.js",
+        "okta-rule-builder.js",
+        "oel-preview.js",
+        "orb-rule-viewer.js",
+        "orb-exports.js",
+        "verify-mfa.js",
+        "workflows.js",
+        "orb-plugin.js"
+      ],
+      "css": [
+        "orb.css"
+      ]
     }
   ]
 }
