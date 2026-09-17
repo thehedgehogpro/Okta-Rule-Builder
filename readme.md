@@ -4,12 +4,21 @@
 ...and more coming soon.
 
 # Install the extension
-1. Create a folder on your hard drive called "ORB". Download the files to the "ORB" folder.
+**Option 1: Install from the Chrome Store**
+- Just search 'ORB' or 'Okta Rule Builder' and you'll find it!
+- This will also keep you up to date with new features as they roll out.
+
+**Option 2: Self Install** 
+1. Create a folder (in your Download folder, for example) called "ORB". Download the github files to the "ORB" folder. If they download as a .zip, extract it.
 2. Open Chrome, navigate to the extensions (chrome://extensions/)
-4. Click to enable Developer Mode in the top right.
-5. Click "Load unpacked" in the top left, then select the "ORB" folder.
+4. In the top right, to enable Developer Mode.
+5. In the top left, Click "Load unpacked" then select the "ORB" folder.
 
 # Version Notes
+**v1.1**
+- Added ability to review Auth Policy triggers directly from the Sys Log for "DENY" events.
+- Added "Search by application" search bar to the Auth Policies page.
+
 **v1.0**
 - Added "Verify MFA" to the user page to allow for Helpdesk IT admins to validate a caller using MFA prompt.
 - Added a Search Bar function to the Workflows app, allowing for search regardless of folder location

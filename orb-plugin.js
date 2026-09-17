@@ -627,6 +627,51 @@
   }
 
   /* =========================================================================
+     AUTH TRACE MOUNT — auth-trace.js owns the "Auth Trace" buttons beside
+     each DENY on the System Log and the rule walk behind them. It reads the
+     event itself out of the log table's own hidden details row, so the only
+     request helper it needs is getJSON: one call for the policy's rules, plus
+     group, zone, and device-assurance lookups when a rule references them.
+     No postJSON, since it writes nothing.
+  ========================================================================= */
+  function mountAuthTrace() {
+    if (!window.orbAuthTrace) {
+      console.warn(
+        "[orb] auth-trace.js is not loaded, so the Auth Trace buttons were skipped."
+      );
+      return;
+    }
+    window.orbAuthTrace.inject({
+      getJSON,
+      createPopup,
+      ui: orbUI,
+    });
+  }
+
+  /* =========================================================================
+     APP POLICY SEARCH MOUNT — policy-app-search.js owns the "Search by
+     application" field on the app sign-in policies page, which answers the
+     reverse of what that page offers: which policy governs a given app. It
+     reads app objects and follows their accessPolicy link, so getJSON is the
+     only request helper it needs.
+
+     It still takes orbUI, for addBadge alone. orbUI has no text-input factory,
+     so the field itself is a clone of Okta's own search box rather than an
+     orbUI creation, but the corner dot marking a control as ours belongs on it
+     the same as on every ORB button. Passing the whole surface also means the
+     module reads host.ui.MARK instead of hardcoding the class.
+  ========================================================================= */
+  function mountPolicyAppSearch() {
+    if (!window.orbPolicyAppSearch) {
+      console.warn(
+        "[orb] policy-app-search.js is not loaded, so the application search was skipped."
+      );
+      return;
+    }
+    window.orbPolicyAppSearch.inject({ getJSON, ui: orbUI });
+  }
+
+  /* =========================================================================
      WORKFLOWS MOUNT — workflows.js owns the flow search bar in the Workflows
      Console header. It is the first module that runs off the admin host, so it
      gets orbUI and nothing else: its API calls go to the Workflows origin
@@ -714,6 +759,10 @@
      group-only, and Verify MFA stays profile-only. Everything below is
      idempotent, which lets us re-run on history changes when the console swaps
      views without a full page load.
+
+     start() is re-run on every URL change, not only on load, so the route
+     tests below are read fresh each time. See ROUTE WATCHING at the bottom of
+     this file for why that takes a poll rather than an event listener.
   ========================================================================= */
   const GROUP_PATH = /^\/admin\/group(s)?(\/|$)/;
   const APP_INSTANCE_PATH = /^\/admin\/app\/[^\/?#]+\/instance\//;
@@ -722,6 +771,30 @@
   // /admin/users/... screen. Distinct from USER_PROFILE_PATH above, which is
   // one user (singular /admin/user/).
   const USERS_LIST_PATH = /^\/admin\/users\/?$/;
+  // The System Log, which sits outside /admin/ entirely. Auth Trace is the
+  // only module that lives here, and it is the sixth shape this guard covers.
+  const SYSTEM_LOG_PATH = /^\/report\/system_log_2\/?$/;
+  // The app sign-in policy LIST page only. The detail page under it has a
+  // different toolbar, and a policy you are already looking at is not one you
+  // need to search for.
+  const APP_POLICY_LIST_PATH = /^\/admin\/authentication-policies\/app-sign-in\/?$/;
+
+  /* Each module is handed to the console once per page load, the first time
+     the admin reaches a page it belongs on. After that its own injector and
+     MutationObserver own the DOM, so a second inject() would buy nothing and
+     would risk doubling listeners in a module that does not guard against it.
+
+     REMOUNT names the exceptions: modules whose inject() is explicitly safe
+     to call again and which use the repeat call to re-check the route. Add a
+     name here only after reading that module's inject(). */
+  const mounted = new Set();
+  const REMOUNT = new Set(["policyAppSearch"]);
+
+  function once(name, mount) {
+    if (mounted.has(name) && !REMOUNT.has(name)) return;
+    mounted.add(name);
+    mount();
+  }
 
   function start() {
     const path = location.pathname;
@@ -729,15 +802,28 @@
     const onApp = APP_INSTANCE_PATH.test(path);
     const onUser = USER_PROFILE_PATH.test(path);
     const onUsersList = USERS_LIST_PATH.test(path);
-    if (!onGroup && !onApp && !onUser && !onUsersList) return;
+    const onSystemLog = SYSTEM_LOG_PATH.test(path);
+    const onAppPolicyList = APP_POLICY_LIST_PATH.test(path);
+    if (
+      !onGroup &&
+      !onApp &&
+      !onUser &&
+      !onUsersList &&
+      !onSystemLog &&
+      !onAppPolicyList
+    )
+      return;
+
+    if (onSystemLog) once("authTrace", mountAuthTrace);
+    if (onAppPolicyList) once("policyAppSearch", mountPolicyAppSearch);
 
     if (onGroup) {
-      injectGroupRuleModalButton();
-      mountRuleViewer();
-      injectGroupIdLabel();
+      once("groupRuleModal", injectGroupRuleModalButton);
+      once("ruleViewer", mountRuleViewer);
+      once("groupIdLabel", injectGroupIdLabel);
     }
-    if (onUser) mountVerifyMfa();
-    if (onGroup || onApp || onUsersList) mountExport();
+    if (onUser) once("verifyMfa", mountVerifyMfa);
+    if (onGroup || onApp || onUsersList) once("export", mountExport);
   }
 
   /* Two consoles, two hosts. The admin console is <org>-admin.<domain> and
@@ -752,6 +838,37 @@
     mountWorkflows();
   }
 
+  /* ROUTE WATCHING
+
+     The admin console is a single-page app that navigates with
+     history.pushState. pushState fires no event at all: popstate covers only
+     back and forward, hashchange only a hash edit. So listening to those two
+     alone means start() runs exactly once, against whatever URL the tab was
+     loaded with, and a module whose page the admin reaches by clicking is
+     never mounted. Reloading appeared to fix it only because the reload made
+     the target page the load-time URL.
+
+     location is polled rather than patching history.pushState, because a
+     content script's window is not the page's window, so a patch installed
+     here would never see the console's own navigations. The DOM and location
+     are shared, which makes polling the option that works in either world.
+     One string compare every 400ms costs nothing measurable.
+
+     popstate and hashchange stay as well, since they respond immediately and
+     cover the two cases polling would otherwise notice up to 400ms late. */
+  const ROUTE_POLL_MS = 400;
+
+  function watchRoute(entry) {
+    let lastHref = location.href;
+    setInterval(function () {
+      if (location.href === lastHref) return;
+      lastHref = location.href;
+      entry();
+    }, ROUTE_POLL_MS);
+    window.addEventListener("popstate", entry);
+    window.addEventListener("hashchange", entry);
+  }
+
   function boot() {
     const onAdmin = /-admin/.test(location.host);
     const onWorkflows = WORKFLOWS_HOST.test(location.host);
@@ -762,9 +879,7 @@
     if (document.body) entry();
     else document.addEventListener("DOMContentLoaded", entry, { once: true });
 
-    // The console changes the URL without reloading in places, so re-check.
-    window.addEventListener("popstate", entry);
-    window.addEventListener("hashchange", entry);
+    watchRoute(entry);
   }
 
   boot();
@@ -786,6 +901,8 @@
       mountGroupExport: mountExport, // old name, kept as an alias
       mountExport,
       mountVerifyMfa,
+      mountAuthTrace,
+      mountPolicyAppSearch,
       mountWorkflows,
     };
   }

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "ORB - Okta Rule Builder",
-  "version": "1.0",
-  "description": "Okta Rule Builder (ORB) adds extensive group rule functionality",
+  "version": "1.1",
+  "description": "Okta Rule Builder (ORB) adds extensive Okta functionality",
   "omnibox": {
     "keyword": "orb"
   },
@@ -40,8 +40,10 @@
         "oel-preview.js",
         "orb-rule-viewer.js",
         "orb-exports.js",
+        "policy-app-search.js",
         "verify-mfa.js",
         "workflows.js",
+        "auth-trace.js",
         "orb-plugin.js"
       ],
       "css": [
