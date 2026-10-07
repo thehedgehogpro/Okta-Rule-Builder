@@ -1380,7 +1380,7 @@ function BuilderPanel() {
       h(
         "p",
         { style: { color: C.dim, fontSize: 10, marginTop: 8, lineHeight: 1.5 } },
-        "Okta Rule Builder tool contributed by Tim McWeeny"
+        "Okta Rule Builder tool built by Tim McWeeny"
       )
     )
   );
@@ -1616,7 +1616,7 @@ function App() {
       h(
         "div",
         { style: { marginBottom: 20 } },
-        h("h1", { style: { fontSize: 22, margin: 0, fontWeight: 700 } }, "Okta Rule Builder (beta)"),
+        h("h1", { style: { fontSize: 22, margin: 0, fontWeight: 700 } }, "Okta Rule Builder"),
         h(
           "p",
           { style: { color: C.dim, fontSize: 13, margin: "4px 0 0" } },

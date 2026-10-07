@@ -1,6 +1,10 @@
-# ORB (Okta Rule Builder) adds new user-friendly features to Group Rules via a Chrome plugin
+# ORB (formerly Okta Rule Builder) adds extensive functionality to Okta
 1. Edit Okta Expression Language in a visual logic-builder UI
 2. Run real-time tests against your expression and see which users match your expression.
+3. Auth DENY Tracing
+4. Show where Groups are pushed to
+5. Improved Search
+6. CSV Exports
 ...and more coming soon.
 
 # Install the extension
@@ -15,6 +19,10 @@
 5. In the top left, Click "Load unpacked" then select the "ORB" folder.
 
 # Version Notes
+
+**v1.2**
+- Added a "Push Groups" option under every group page. This displays every app that the group is being pushed to.
+
 **v1.1**
 - Added ability to review Auth Policy triggers directly from the Sys Log for "DENY" events.
 - Added "Search by application" search bar to the Auth Policies page.

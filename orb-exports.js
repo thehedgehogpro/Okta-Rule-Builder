@@ -786,7 +786,7 @@
   function groupMembersDescriptor(groupId) {
     return {
       heading: "Download group members",
-      filePart: "group-members",
+      filePart: "",
       subjectFallback: "this group",
       resolveName: function () {
         return getJSON("/api/v1/groups/" + encodeURIComponent(groupId))
@@ -1632,8 +1632,8 @@
     const lines = [header];
     st.bytes = header.length;
 
-    // Repaint at most once per frame. A 50,000-row export would otherwise
-    // spend real time updating a counter nobody is reading that closely.
+    // Repaints at most once per frame. An extensive export would otherwise
+    // spend time updating a counter nobody is watching closely.
     let dirty = false;
     const tick = function () {
       if (dirty) return;

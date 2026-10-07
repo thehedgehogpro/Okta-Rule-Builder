@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "ORB - Okta Rule Builder",
-  "version": "1.1",
-  "description": "Okta Rule Builder (ORB) adds extensive Okta functionality",
+  "name": "ORB for Okta",
+  "version": "1.2",
+  "description": "ORB (formerly Okta Rule Builder) adds extensive Okta functionality",
   "omnibox": {
     "keyword": "orb"
   },
@@ -35,7 +35,6 @@
         "https://*.okta.mil/*"
       ],
       "js": [
-        "jquery-1.12.4.min.PATCHED.js",
         "okta-rule-builder.js",
         "oel-preview.js",
         "orb-rule-viewer.js",
@@ -44,6 +43,7 @@
         "verify-mfa.js",
         "workflows.js",
         "auth-trace.js",
+        "orb-push-groups.js",
         "orb-plugin.js"
       ],
       "css": [

@@ -2,42 +2,34 @@
    policy-app-search.js — "Search by application" on the app sign-in
    authentication policies page (/admin/authentication-policies/app-sign-in).
 
-   The page lists policies and lets you search their names, but gives no way
-   to go the other direction: given an app, which policy governs it? Today
-   that means opening policies one at a time and reading their Applications
-   tab. This adds a second search field beside the existing one that searches
-   apps and jumps straight to the policy the chosen app is mapped to.
+   Natively, the Auth Policy page only lists policies and lets you search by their names,
+   but given an app, which policy governs it? Today that means opening policies one at a time and reading their Applications
+   tab. This tool adds a second search field beside the existing one that searches
+   apps and jumps straight to the policy it is mapped to.
 
    HOW THE APP-TO-POLICY LOOKUP WORKS
    ----------------------------------
    Every app object in an Identity Engine org carries the mapping already, in
    _links.accessPolicy.href, which points at /api/v1/policies/{policyId}. And
-   /api/v1/apps?q= returns whole app objects, links included. So the whole
-   feature costs one request per search and nothing at all on selection — no
-   walking every policy's /mappings collection, which is what the obvious
-   implementation would have done.
+   /api/v1/apps?q= returns whole app object, links included. So the whole
+   search only costs one request and nothing at all on selection, so no
+   neet to walk through every policy's /mappings collection.
 
    Apps without that link do exist: Classic-mode sign-on and a few app types
    have no authentication policy. Those stay in the results list, since
-   hiding them would look like the search was broken, but say so on select
-   rather than navigating somewhere wrong.
+   hiding them would look like the search was broken, but display a note
+   to the effect if clicked.
 
-   WHY THE FIELD IS CLONED RATHER THAN BUILT
+   WHY THE FIELD UI IS CLONED OFF OKTA'S RATHER THAN BUILT
    -----------------------------------------
-   This page is React with emotion class names (gyiuhfb-1ggsp5q and friends).
-   Those hashes change on any Okta build, so none of them can be selected on
-   and hand-building a matching Odyssey text field would mean copying styles
-   that go stale the same way. Instead the module clones the existing search
-   field's MuiFormControl wrapper, which inherits Okta's current styling for
-   free, including the magnifier icon.
+   The native Policy page is React with emotion class names (gyiuhfb-1ggsp5q and friends).
+   Those hashes may change on any Okta build, so none of them can be selected on.
+   Hand-building a matching Odyssey text field would mean copying styles
+   that can go stale the same way. Instead the module clones the existing search
+   field's MuiFormControl wrapper, which inherits Okta's current styling, including the magnifier icon.
 
-   cloneNode copies attributes but not the expando properties React stores
-   its fiber under, so the clone is inert as far as React is concerned. We
-   attach our own listeners and React never fights us for it. Ids are
-   rewritten on the way through, since duplicating them would break the
-   original field's label association.
-
-   Load order: before orb-plugin.js, which mounts it.
+   So cloneNode copies attributes but not the expando properties React stores
+   its fiber under, so the clone is inert as far as React is concerned.
 =========================================================================== */
 (function () {
   "use strict";
@@ -64,8 +56,7 @@
 
   let host = null; // { getJSON }
 
-  // Query term -> promise of results. Backspacing through a term should not
-  // re-hit the API for something just typed.
+  // Backspacing through a term should not re-hit the API for something just typed.
   const searchCache = new Map();
 
   function el(tag, style, text) {

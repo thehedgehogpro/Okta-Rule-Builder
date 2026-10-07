@@ -2,10 +2,10 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>ORB - Okta Rule Builder</title>
+<title>ORB for Okta</title>
 <style>
 html {
-    /* Fallback color in case the gradient layer ever fails to paint */
+    /* Fallback color in case the gradient layer fails to paint */
     background: #0a1e3f;
 }
 body {
@@ -20,7 +20,7 @@ body {
     background: transparent;
     color: #ffffff;
 }
-/* Fixed layer pinned to the popup viewport, so it never scrolls or cuts off */
+
 body::before {
     content: "";
     position: fixed;
@@ -50,7 +50,7 @@ h2, h3 {
     color: #ffffff;
 }
 p, li {
-    /* Keeps white type readable over the lighter end of the gradient */
+    /* Keeps white type readable over the lighter gradient */
     text-shadow: 0 1px 2px rgba(4, 18, 38, 0.55);
 }
 a {
@@ -81,16 +81,15 @@ a:focus-visible {
 <body>
 <div class="header">
 <img class="logo" src="ORB_Logo_White_36.png" alt="">
-<span class="title">Okta Rule Builder (ORB)</span>
+<span class="title">ORB for Okta</span>
 <a class="help-link" href='https://github.com/thehedgehogpro/Okta-Rule-Builder/' target='_blank' rel='noopener' title="Open the ORB project on GitHub">?</a>
 </div>
-<h3>Okta Rule builder created by Tim McWeeny</h3>
-<p>If ORB has helped you manage your group rules, and you think I've earned it... I'd love a coffee :) Venmo: @Tim-McWeeny</p>
+<h3>The ORB tool is created by Tim McWeeny</h3>
+<p>If ORB has helped improve your Okta experience, and you think I've earned it... I'd love a coffee :) Venmo: @Tim-McWeeny</p>
 
-<h2>Release Notes v1.1</h2>
+<h2>Release Notes v1.2</h2>
 <ul>
-<li>Added ability to review Auth Policy triggers directly from the Sys Log for "DENY" events. This make troubleshooting denied access easy and fun!
-<li>Added "Search by application" search bar to the Auth Policies page. This allows you to quickly find the policy that applies to your target app.
+<li>Added a "Push Groups" option under every group page. This displays every app that the group is being pushed to.
 </ul>
 
 <h2>Enhances Okta with these features:</h2>

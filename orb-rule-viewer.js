@@ -1057,7 +1057,7 @@
           display: "inline-flex", alignItems: "center", gap: 4,
           marginLeft: 6, padding: "1px 7px",
           background: C.accent, color: C.text_light,
-          border: `1px solid ${C.border}`, borderRadius: 10,
+          border: `0px solid ${C.border}`, borderRadius: 5,
           fontFamily: SANS, fontSize: 11, fontWeight: 700, lineHeight: "16px",
           cursor: "pointer", verticalAlign: "middle", whiteSpace: "nowrap",
         },

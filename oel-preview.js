@@ -866,7 +866,7 @@ function createOelPreview(_mountRoot, _opts) {
         h(
         "p",
         { style: { color: C.dim, fontSize: 10, marginTop: 8, lineHeight: 1.5 } },
-        "Okta Rule Builder tool contributed by Tim McWeeny"
+        "Okta Rule Builder tool built by Tim McWeeny"
       )
       )
     );

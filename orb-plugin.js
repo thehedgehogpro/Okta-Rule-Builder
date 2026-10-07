@@ -24,7 +24,8 @@
        3. orb-rule-viewer.js     (defines window.orbRuleViewer)
        4. orb-group-export.js    (defines window.orbGroupExport)
        5. verify-mfa.js          (defines window.orbVerifyMfa)
-       6. orb-plugin.js          (this file — mounts them)
+       6. orb-push-groups.js     (defines window.orbPushGroups)
+       7. orb-plugin.js          (this file — mounts them)
 
    The two modules already carry native-fetch fallbacks, so this file does NOT
    depend on jQuery. It only hands OEL Preview a postJSON + getLinks so the
@@ -113,6 +114,47 @@
 
       if (spec.tag === "input") orbUI._shellFor(el);
       return el;
+    },
+
+    /* Build a tab for one of the console's jQuery-UI tab strips, as on a
+       group page where People, Applications, and Profile sit. Returns the
+       <li>, not the anchor, because the <li> is what carries the selection
+       classes and what gets inserted into the strip. The anchor is reachable
+       as li.anchor for a caller that needs to read its id or href.
+         id          anchor id. Okta derives a panel's id from its tab's, as
+                     "#tab-users" -> "div#tab-users-", so a module wanting a
+                     panel should follow that shape
+         label       visible text
+         title       tooltip, same provenance suffix as createButton
+         className   extra classes on the <li>
+         onClick     handler. Always gets preventDefault, since a tab strip
+                     Okta routes off location.hash would otherwise navigate
+
+       Selection is deliberately left to the caller. A strip's active classes
+       are Okta's to change and a module driving its own tab is already
+       reading them, so duplicating the pair here would mean two places to fix.
+       ------------------------------------------------------------------- */
+    createTab(opts) {
+      const o = opts || {};
+      const li = document.createElement("li");
+      li.className = "ui-state-default ui-corner-top " + ORB_MARK +
+        (o.className ? " " + o.className : "");
+
+      const a = document.createElement("a");
+      if (o.id) a.id = o.id;
+      a.href = o.href || "#";
+      a.textContent = o.label || "";
+      if (o.title) a.title = o.title + " (added by the ORB extension)";
+      if (typeof o.onClick === "function") {
+        a.addEventListener("click", function (e) {
+          e.preventDefault();
+          o.onClick(e);
+        });
+      }
+
+      li.appendChild(a);
+      li.anchor = a;
+      return li;
     },
 
     /* The node that represents this button in layout: the shell for a form
@@ -691,6 +733,37 @@
   }
 
   /* =========================================================================
+     PUSH GROUPS MOUNT — orb-push-groups.js owns the "Push Groups" tab on a
+     single group's page and the reverse lookup behind it: which applications
+     push this group. Okta's group-push API is app-centric, so the module
+     crawls the apps that have GROUP_PUSH in their features and asks each one
+     for its mappings, which is why it is the one module that gets
+     groupIdFromPath. It needs the group in the URL on every render, not just
+     at mount, since the console swaps groups without reloading.
+
+     It is handed getLinks and getXsrfToken but NOT getJSON, which is the same
+     trade workflows.js makes. The apps crawl pages on the Link header and the
+     mappings payload is heavy enough to want a 429 backoff, and getJSON
+     resolves straight to parsed JSON with the headers and status already
+     discarded. So the module owns its fetch and borrows our Link parser,
+     rather than there being two of those in the extension.
+  ========================================================================= */
+  function mountPushGroups() {
+    if (!window.orbPushGroups) {
+      console.warn(
+        "[orb] orb-push-groups.js is not loaded, so the Push Groups tab was skipped."
+      );
+      return;
+    }
+    window.orbPushGroups.inject({
+      getLinks,
+      getXsrfToken,
+      groupIdFromPath,
+      ui: orbUI,
+    });
+  }
+
+  /* =========================================================================
      GROUP ID LABEL — a group page shows the name and the description but never
      the group's ID, so an admin who needs it for an API call or a rule has to
      read it back out of the URL. We append it to the description line instead.
@@ -821,6 +894,7 @@
       once("groupRuleModal", injectGroupRuleModalButton);
       once("ruleViewer", mountRuleViewer);
       once("groupIdLabel", injectGroupIdLabel);
+      once("pushGroups", mountPushGroups);
     }
     if (onUser) once("verifyMfa", mountVerifyMfa);
     if (onGroup || onApp || onUsersList) once("export", mountExport);
@@ -901,6 +975,7 @@
       mountGroupExport: mountExport, // old name, kept as an alias
       mountExport,
       mountVerifyMfa,
+      mountPushGroups,
       mountAuthTrace,
       mountPolicyAppSearch,
       mountWorkflows,
